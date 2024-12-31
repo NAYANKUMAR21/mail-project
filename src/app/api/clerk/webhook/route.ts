@@ -1,5 +1,6 @@
 // /api/clerk/webhook
 
+import { NextResponse } from "next/server";
 import { db } from "~/server/db";
 
 export async function POST(req: Request) {
@@ -21,7 +22,7 @@ export async function POST(req: Request) {
     },
   });
   console.log("User created...");
-  return new Response("Webhook received ", { status: 200 });
+  return NextResponse.json("Webhook received ", { status: 200 });
 }
 
 /* 
