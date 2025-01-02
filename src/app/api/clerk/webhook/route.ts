@@ -1,9 +1,9 @@
 // /api/clerk/webhook
-
-import { NextResponse } from "next/server";
+"use server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "~/server/db";
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   const { data } = await req.json();
   console.log("Cleark data received", data);
 

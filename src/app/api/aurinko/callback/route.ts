@@ -1,54 +1,67 @@
-"use server";
+// import { getAccountDetails, exchangeCodeForAccessToken } from "@/lib/aurinko";
+import { waitUntil } from "@vercel/functions";
 import { auth } from "@clerk/nextjs/server";
-import { NextRequest, NextResponse } from "next/server";
-import { exchangeCodeForAccessToken, getAccountDetails } from "~/lib/aurinko";
+import axios from "axios";
+import { type NextRequest, NextResponse } from "next/server";
 import { db } from "~/server/db";
+import { exchangeCodeForAccessToken, getAccountDetails } from "~/lib/aurinko";
 
 export const GET = async (req: NextRequest) => {
   const { userId } = await auth();
-  console.log(userId);
-  if (!userId)
-    return NextResponse.json({ message: "UnAuthorised" }, { status: 401 });
-  console.log("userId", userId);
+  if (!userId) {
+    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+  }
+
   const params = req.nextUrl.searchParams;
-  console.log(params);
   const status = params.get("status");
-  if (status != "success") {
-    return NextResponse.json({ message: "No Code Provided" }, { status: 400 });
-  }
+  if (status !== "success")
+    return NextResponse.json(
+      { error: "Account connection failed" },
+      { status: 400 },
+    );
+
   const code = params.get("code");
-  if (!code) {
-    return NextResponse.json({ message: "Unauthorised" }, { status: 401 });
-  }
-  const token = await exchangeCodeForAccessToken(code);
-
-  if (!token) {
-    return NextResponse.json({
-      message: "Failed to exchange code for access token",
-    });
-  }
-
+  const token = await exchangeCodeForAccessToken(code as string);
+  if (!token)
+    return NextResponse.json(
+      { error: "Failed to fetch token" },
+      { status: 400 },
+    );
   const accountDetails = await getAccountDetails(token.accessToken);
-
   if (!accountDetails) {
-    return NextResponse.json({ message: "UnAuthorized" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Failed to fetch account details" },
+      { status: 400 },
+    );
   }
-
   await db.account.upsert({
-    where: {
+    where: { id: token.accountId.toString() },
+    create: {
       id: token.accountId.toString(),
+      userId,
+      accessToken: token.accessToken,
+      // provider: "Aurinko",
+      emailAddress: accountDetails.email,
+      name: accountDetails.name,
     },
     update: {
       accessToken: token.accessToken,
     },
-    create: {
-      id: token.accountId.toString(),
-      userId,
-      emailAddress: accountDetails.email,
-      name: accountDetails.name,
-      accessToken: token.accessToken,
-    },
   });
+  waitUntil(
+    axios
+      .post(`${process.env.NEXT_PUBLIC_URL}/api/initial-sync`, {
+        accountId: token.accountId.toString(),
+        userId,
+      })
+      .then((res) => {
+        console.log(res.data);
+      })
+      .catch((err) => {
+        console.log("herer--------------");
+        console.log(err);
+      }),
+  );
 
   return NextResponse.redirect(new URL("/mail", req.url));
 };

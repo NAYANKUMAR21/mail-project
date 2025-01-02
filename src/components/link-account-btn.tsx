@@ -8,7 +8,7 @@ export default function LinkBitton() {
     <Button
       onClick={async () => {
         const data = await getAurinkoAuthUrl("Google");
-        // window.location.href = data;
+        window.location.href = data;
         console.log(data);
       }}
     >
