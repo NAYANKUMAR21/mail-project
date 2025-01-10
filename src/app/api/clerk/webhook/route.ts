@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "~/server/db";
 
+console.log("here");
 export async function POST(req: NextRequest) {
   const { data } = await req.json();
   console.log("Cleark data received", data);
